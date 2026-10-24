@@ -34,3 +34,49 @@ test('large synthetic input gives totals consistent with per-tenant reports', ()
   assert.equal(result.totals.views, result.reports.reduce((sum, report) => sum + report.views, 0));
   assert.equal(result.totals.revenue, result.reports.reduce((sum, report) => sum + report.revenue, 0));
 });
+
+test('preserve tenant order and date boundaries', () => {
+  const rows: ActivityEvent[] = [
+    { eventId: '1', tenantId: 'alpha', occurredAt: 'invalid', kind: "view", value: 0 },
+    { eventId: '2', tenantId: 'alpha', occurredAt: '2026-09-08T10:00:00Z', kind: "view", value: 0 },
+    { eventId: '3', tenantId: 'alpha', occurredAt: '2026-10-01T00:00:00Z', kind: "view", value: 0 }
+  ];
+
+  const result = createReport(rows, {
+    tenantIds: ['missing', 'alpha'],
+    from: "2026-09-08T10:00:00Z",
+    to: "2026-10-01T00:00:00Z"
+  });
+
+  assert.deepEqual(result.reports.map(r => [r.tenantId, r.views]),
+    [['missing', 0], ['alpha', 1]]
+  )
+})
+
+
+// {
+//   "eventCount": 30000,
+//   "tenantCount": 240,
+//   "iterations": 7,
+//   "medianMs": 75.3,
+//   "p95Ms": 103.12,
+//   "checksum": "{\"views\":13652,\"signups\":6443,\"purchases\":2608,\"revenue\":325642}"
+// }
+
+// {
+//   "eventCount": 15000,
+//   "tenantCount": 240,
+//   "iterations": 7,
+//   "medianMs": 41.55,
+//   "p95Ms": 56.94,
+//   "checksum": "{\"views\":6740,\"signups\":3285,\"purchases\":1295,\"revenue\":162318}"
+// }
+
+// {
+//   "eventCount": 30000,
+//   "tenantCount": 60,
+//   "iterations": 7,
+//   "medianMs": 21.38,
+//   "p95Ms": 27.34,
+//   "checksum": "{\"views\":13652,\"signups\":6443,\"purchases\":2608,\"revenue\":325642}"
+// }

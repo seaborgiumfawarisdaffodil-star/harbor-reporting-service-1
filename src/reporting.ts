@@ -4,22 +4,6 @@ function emptyReport(tenantId: string): TenantReport {
   return { tenantId, views: 0, signups: 0, purchases: 0, revenue: 0 };
 }
 
-function summarize(events: ActivityEvent[], tenantId: string, from: number, to: number): TenantReport {
-  const result = emptyReport(tenantId);
-  const matching = events.filter(event => event.tenantId === tenantId &&
-    Date.parse(event.occurredAt) >= from && Date.parse(event.occurredAt) < to);
-
-  for (const event of matching) {
-    if (event.kind === 'view') result.views += 1;
-    if (event.kind === 'signup') result.signups += 1;
-    if (event.kind === 'purchase') {
-      result.purchases += 1;
-      result.revenue += event.value;
-    }
-  }
-  return result;
-}
-
 export function createReport(events: ActivityEvent[], request: ReportRequest): ReportingResponse {
   const from = Date.parse(request.from);
   const to = Date.parse(request.to);
@@ -30,7 +14,27 @@ export function createReport(events: ActivityEvent[], request: ReportRequest): R
     throw new Error('Duplicate tenant IDs are not supported');
   }
 
-  const reports = request.tenantIds.map(tenantId => summarize(events, tenantId, from, to));
+  const reports = request.tenantIds.map(emptyReport);
+  const byTenant = new Map(
+    reports.map(report => [report.tenantId, report] as const)
+  );
+
+  for (const event of events) {
+    const report = byTenant.get(event.tenantId);
+    if(!report) continue;
+    const occuredAt = Date.parse(event.occurredAt);
+    if(!(occuredAt >= from && occuredAt < to)) continue;
+
+    if(event.kind === "view") {
+      report.views +=1;
+    } else if(event.kind === 'signup') {
+      report.signups +=1;
+    } else {
+      report.purchases +=1;
+      report.revenue += event.value;
+    }
+  }
+  
   const totals = reports.reduce((acc, report) => ({
     views: acc.views + report.views,
     signups: acc.signups + report.signups,
