@@ -34,3 +34,22 @@ test('large synthetic input gives totals consistent with per-tenant reports', ()
   assert.equal(result.totals.views, result.reports.reduce((sum, report) => sum + report.views, 0));
   assert.equal(result.totals.revenue, result.reports.reduce((sum, report) => sum + report.revenue, 0));
 });
+
+test("preserve tenent order and exclusive end", () => {
+  const result = createReport([
+    { eventId: 'a', tenantId: 'alpha', occurredAt: '2026-09-01T00:00:00Z', kind: 'view', value: 0 },
+    { eventId: 'b', tenantId: 'alpha', occurredAt: '2026-10-01T00:00:00Z', kind: 'view', value: 0 },
+  ], {
+    tenantIds: ['missing', 'alpha'],
+    from: '2026-09-01T00:00:00Z',
+    to: '2026-10-01T00:00:00Z'
+  })
+
+  assert.deepEqual(result.reports.map(r => [r.tenantId, r.views]), [
+    ['missing', 0], ['alpha', 1]
+  ])
+});
+
+
+// 3.02 - 15000
+//  6.12 - 30000, 60
